@@ -2,6 +2,7 @@
 # by making the characters bit strins
 
 import math
+import sys
 import itertools
 from saxpy.znorm import znorm
 from saxpy.paa import paa
@@ -29,22 +30,24 @@ def ts_to_string(series, cuts):
     """A straightforward num-to-string conversion."""
     a_size = len(cuts)
     sax = list()
+
     #  Create the bit array.
     sudo_bits = bit_sequence(countBits(a_size), a_size)
+
     for i in range(0, len(series)):
         num = series[i]
         # if teh number below 0, start from the bottom, or else from the top
-        if(num >= 0):
+        if num >= 0:
             j = a_size - 1
-            while ((j > 0) and (cuts[j] >= num)):
+            while (j > 0) and (cuts[j] >= num):
                 j = j - 1
-            sax.append(sudo_bits[j])
+            sax.append(chr(97 + j) if a_size < 20 else sudo_bits[j])
         else:
             j = 1
-            while (j < a_size and cuts[j] <= num):
+            while j < a_size and cuts[j] <= num:
                 j = j + 1
-            sax.append(sudo_bits[j-1])
-    return sax
+            sax.append(chr(97 + (j-1)) if a_size < 20 else sudo_bits[j-1])
+    return "".join(sax) if a_size < 20 else np.array(sax)
 
 
 def convert_to_sax(dat, word_size, alphabet_size):
@@ -61,10 +64,12 @@ def cuts_for_asize(num):
     return cuts
 
 
-word_size, alphabet_size = 100, 1024
+word_size, alphabet_size = 50, 21
 
 df = pd.read_csv ('first_year_subset.csv')
 dat1 = df['Temp'].to_numpy()
 sax1 = convert_to_sax(dat1, word_size, alphabet_size)
-print(sax1)
+
+print(len(dat1))
+print(len(sax1))
 
