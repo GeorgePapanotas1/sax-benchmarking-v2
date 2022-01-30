@@ -103,19 +103,18 @@ def getExported(exportPath):
     return g.glob(exportPath + "*")
 
 
-def fetchTimeseriesFiles():
+def fetchTimeseriesFiles(change_dataset):
     path = "./FinancialData/history"
     exports = "./FinancialData/exports/"
-
-    datasetFiles = os.listdir(path)
-    [firstFileIndex, secondFileIndex] = pickRandomFiles(0, len(datasetFiles))
-    extractData(path, exports, [datasetFiles[firstFileIndex], datasetFiles[secondFileIndex]])
+    if change_dataset:
+        purgeExports(exports)
+        datasetFiles = os.listdir(path)
+        [firstFileIndex, secondFileIndex] = pickRandomFiles(0, len(datasetFiles))
+        extractData(path, exports, [datasetFiles[firstFileIndex], datasetFiles[secondFileIndex]])
     return getExported(exports)
 
 
 def convertRawToSax(word_size, alphabet_size, files):
-    exports = "./FinancialData/exports/"
-    word_size, alphabet_size = word_size, alphabet_size
     return_list = []
     dat_list = []
     for f in files:
@@ -124,24 +123,19 @@ def convertRawToSax(word_size, alphabet_size, files):
         dat_list.append(dat)
         sax = convert_to_sax(dat, word_size, alphabet_size)
         return_list.append(sax)
-    purgeExports(exports)
-    return_list.append(dat_list[0])
-    return_list.append(dat_list[1])
     # Calculate difference
     if len(dat_list[0]) - len(dat_list[1]) > 0:
         diff = len(dat_list[0]) - len(dat_list[1])
-        print(diff)
         a = np.zeros((1, diff))
         dat_list[1] = np.append(dat_list[1], a)
     else:
         diff = len(dat_list[1]) - len(dat_list[0])
-        print(diff)
         a = np.zeros((1, diff))
         dat_list[0] = np.append(dat_list[0], a)
-
-    od = np.linalg.norm(dat_list[0]-dat_list[1])
+    return_list.append(dat_list[0])
+    return_list.append(dat_list[1])
+    od = np.linalg.norm(dat_list[0] - dat_list[1])
     return_list.append(od)
-    print(return_list)
     return return_list
 
 
@@ -173,19 +167,28 @@ def calculateSaxDistance(sax1, sax2, alph_size):
     return sax_distance
 
 
-word_size, alphabet_size = 1000, 25
-sax1, sax2, dat1, dat2, od = convertRawToSax(word_size, alphabet_size, fetchTimeseriesFiles())
+# TODO 1. Wrap all values (saxes, dats, od, TLB, MinDist) to json and send to front end for reporting
+# TODO 2. Reorganize the codebase.
+# TODO 3. The execution time is unbearable. Try to multithread.
+# TODO 4. Allow the user to modify the w, a coefficients via a front end and show results in the console.
+# TODO 5. Create automated tests. For a pair of Timeseries run the code X times changing the w and a. Use a threshold
 
-# print(convertRawToSax(word_size, alphabet_size, fetchTimeseriesFiles()))
-print("Tightness of Lower bound: ", calculateSaxDistance(sax1, sax2, alphabet_size) / od)
-print("SAX 1 word size:", sax1.nbytes, "--- Original timeseries size:", dat1.nbytes, "Compression ratio:", 100 - (
-            sax1.nbytes / dat1.nbytes) * 100)
-print("SAX 2 word size:", sax2.nbytes, "--- Original timeseries size:", dat2.nbytes, "Compression ratio:", 100 - (
-             sax2.nbytes / dat2.nbytes) * 100)
+def handler(word_length, alphabet_size, change_dataset=False):
+    word_size, alphabet_size = word_length, alphabet_size
+    sax1, sax2, dat1, dat2, od = convertRawToSax(word_size, alphabet_size, fetchTimeseriesFiles(change_dataset))
+    print("Tightness of Lower bound: ", calculateSaxDistance(sax1, sax2, alphabet_size) / od)
+    print("Original Distance", od)
+    if alphabet_size < 21:
+        sax1_size = getsizeof(sax1)
+        sax2_size = getsizeof(sax2)
+    else:
+        sax1_size = sax1.nbytes
+        sax2_size = sax2.nbytes
 
-# print(type(sax1))
-# print(type(dat1))
+    print("SAX 1 word size:", sax1_size, "--- Original timeseries size:", dat1.nbytes, "Compression ratio:", 100 - (
+            sax1_size / dat1.nbytes) * 100)
+    print("SAX 2 word size:", sax2_size, "--- Original timeseries size:", dat2.nbytes, "Compression ratio:", 100 - (
+            sax2_size / dat2.nbytes) * 100)
 
-# TODO 1. Prevent dataset change (dont generate new files/purge) until user asks for it.
-# TODO 2. On string sax nbytes wont work. Calculate the correct sax size (a simple size will suffice)
-# TODO 3. Allow the user to modify the w, a coefficients via a front end and show results in the console.
+
+handler(2000, 500, False)
